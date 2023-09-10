@@ -7,6 +7,7 @@ package gonix
 // #include <nix_api_value.h>
 import "C"
 import (
+	"fmt"
 	"runtime"
 	"unsafe"
 )
@@ -26,15 +27,29 @@ func NewValue(state *State) *Value {
 
 func (v *Value) Force() error {
 	cerr := C.nix_value_force(v.state.Context().ccontext, v.state.cstate, v.cvalue)
-	return nixError(cerr)
+	return nixError(cerr, v.state.Context())
 }
 
-func (v *Value) String() string {
+func (v *Value) GetType() int {
 	cctx := v.state.Context().ccontext
+
+	t := C.nix_get_type(cctx, v.cvalue)
+
+	return (int)(t)
+}
+
+func (v *Value) GetString() (*string, error) {
+	cctx := v.state.Context().ccontext
+
+	typ := v.GetType()
+	if typ != C.NIX_TYPE_STRING {
+		return nil, fmt.Errorf("expected a string, got %v", typ)
+	}
 
 	s := C.nix_get_string(cctx, v.cvalue)
 	if s == nil {
-		return ""
+		return nil, nil
 	}
-	return C.GoString(s)
+	str := C.GoString(s)
+	return &str, nil
 }

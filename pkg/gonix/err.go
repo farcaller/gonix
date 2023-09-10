@@ -11,7 +11,7 @@ import (
 	"fmt"
 )
 
-func nixError(err C.int) error {
+func nixError(err C.int, ctx *Context) error {
 	switch err {
 	case C.NIX_OK:
 		return nil
@@ -22,7 +22,7 @@ func nixError(err C.int) error {
 	case C.NIX_ERR_KEY:
 		return errors.New("nix key error")
 	case C.NIX_ERR_NIX_ERROR:
-		return errors.New("generic nix error")
+		return fmt.Errorf("nix error: %s", C.GoString(C.nix_err_msg(nil, ctx.ccontext, nil)))
 	default:
 		return fmt.Errorf("unknown nix error code %d", err)
 	}

@@ -9,4 +9,6 @@ import "C"
 
 func init() {
 	C.nix_libexpr_init(nil)
+	C.nix_libstore_init(nil)
+	C.nix_libutil_init(nil)
 }

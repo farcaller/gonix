@@ -7,11 +7,15 @@ import (
 )
 
 func mustEvalString(state *gonix.State, expr string) string {
-	val, err := gonix.ExprEvalFromString(state, expr, ".")
+	val, err := state.EvalExpr(expr, ".")
 	if err != nil {
-		panic(fmt.Errorf("faled to eval: %v", err))
+		panic(fmt.Errorf("failed to eval: %v", err))
 	}
-	return val.String()
+	s, err := val.GetString()
+	if err != nil {
+		panic(fmt.Errorf("failed to eval: %v", err))
+	}
+	return *s
 }
 
 func main() {

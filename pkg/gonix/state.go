@@ -40,3 +40,15 @@ func finalizeState(cstate *C.State) {
 func (s *State) Context() *Context {
 	return s.store.Context()
 }
+
+func (s *State) EvalExpr(expr, path string) (*Value, error) {
+	retval := NewValue(s)
+	cexpr := C.CString(expr)
+	cpath := C.CString(path)
+	cerr := C.nix_expr_eval_from_string(s.Context().ccontext, s.cstate, cexpr, cpath, retval.cvalue)
+	err := nixError(cerr, s.Context())
+	if err != nil {
+		return nil, err
+	}
+	return retval, nil
+}

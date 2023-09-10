@@ -19,3 +19,8 @@ func NewContext() *Context {
 func finalizeContext(cctx *C.nix_c_context) {
 	C.nix_c_context_free(cctx)
 }
+
+func (c *Context) LastError() error {
+	cerr := C.nix_err_code(c.ccontext)
+	return nixError(cerr, c)
+}
