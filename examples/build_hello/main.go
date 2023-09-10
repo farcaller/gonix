@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/farcaller/gonix/pkg/gonix"
+	"github.com/farcaller/gonix"
 )
 
 func mustEvalString(state *gonix.State, expr string) string {

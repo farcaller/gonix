@@ -3,7 +3,7 @@ package gonix_test
 import (
 	"fmt"
 
-	"github.com/farcaller/gonix/pkg/gonix"
+	"github.com/farcaller/gonix"
 )
 
 func Example() {
