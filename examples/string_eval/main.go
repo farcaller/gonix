@@ -21,7 +21,7 @@ func mustEvalString(state *gonix.State, expr string) string {
 func main() {
 	ctx := gonix.NewContext()
 	store := gonix.NewStore(ctx, "", nil)
-	state := gonix.NewState(store, nil)
+	state := store.NewState(nil)
 
 	fmt.Printf("running nix v%s on %s\n",
 		mustEvalString(state, "builtins.nixVersion"),
