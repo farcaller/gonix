@@ -16,7 +16,7 @@ type State struct {
 	cstate *C.State
 }
 
-func NewState(store *Store, searchPath []string) *State {
+func (s *Store) NewState(searchPath []string) *State {
 	searchPathPtrs := make([]*C.char, len(searchPath))
 	for i, str := range searchPath {
 		cStr := C.CString(str)
@@ -28,9 +28,9 @@ func NewState(store *Store, searchPath []string) *State {
 		csearchPath = (**C.char)(unsafe.Pointer(&searchPathPtrs[0]))
 	}
 
-	cstate := C.nix_state_create(store.Context().ccontext, csearchPath, store.cstore)
+	cstate := C.nix_state_create(s.Context().ccontext, csearchPath, s.cstore)
 	runtime.SetFinalizer(cstate, finalizeState)
-	return &State{store, cstate}
+	return &State{s, cstate}
 }
 
 func finalizeState(cstate *C.State) {
