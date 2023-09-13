@@ -24,8 +24,7 @@ func ExampleState_NewExternalValue() {
 	}
 	state := store.NewState(nil)
 
-	v := simpleExternal{}
-	externalVal, err := state.NewExternalValue(&v)
+	externalVal, err := state.NewExternalValue(&simpleExternal{})
 	if err != nil {
 		panic(fmt.Errorf("failed to create an external value: %v", err))
 	}

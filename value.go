@@ -15,6 +15,7 @@ import (
 type Value struct {
 	state  *State
 	cvalue unsafe.Pointer
+	ev     *externalValueHandle
 }
 
 func NewValue(state *State) (*Value, error) {
@@ -25,7 +26,7 @@ func NewValue(state *State) (*Value, error) {
 	runtime.SetFinalizer(&cvalue, func(v *unsafe.Pointer) {
 		C.nix_gc_decref(state.context().ccontext, *v)
 	})
-	return &Value{state, cvalue}, nil
+	return &Value{state, cvalue, nil}, nil
 }
 
 func (v *Value) context() *Context {
@@ -75,36 +76,47 @@ func (v *Value) GetInt() (int64, error) {
 }
 
 func (v *Value) SetBool(b bool) error {
+	v.ev = nil
 	cerr := C.nix_set_bool(v.context().ccontext, v.cvalue, C.bool(b))
 	return nixError(cerr, v.context())
 }
 
 func (v *Value) SetString(s string) error {
+	v.ev = nil
 	cerr := C.nix_set_string(v.context().ccontext, v.cvalue, C.CString(s))
 	return nixError(cerr, v.context())
 }
 
 func (v *Value) SetPathString(ps string) error {
+	v.ev = nil
 	cerr := C.nix_set_path_string(v.context().ccontext, v.cvalue, C.CString(ps))
 	return nixError(cerr, v.context())
 }
 
 func (v *Value) SetFloat(f float64) error {
+	v.ev = nil
 	cerr := C.nix_set_float(v.context().ccontext, v.cvalue, C.double(f))
 	return nixError(cerr, v.context())
 }
 
 func (v *Value) SetInt(i int64) error {
+	v.ev = nil
 	cerr := C.nix_set_int(v.context().ccontext, v.cvalue, C.longlong(i))
 	return nixError(cerr, v.context())
 }
 
 func (v *Value) SetNull() error {
+	v.ev = nil
 	cerr := C.nix_set_null(v.context().ccontext, v.cvalue)
 	return nixError(cerr, v.context())
 }
 
 func (v *Value) SetExternalValue(ev externalValueHandle) error {
 	cerr := C.nix_set_external(v.context().ccontext, v.cvalue, ev.cev)
-	return nixError(cerr, v.context())
+	err := nixError(cerr, v.context())
+	if err != nil {
+		return err
+	}
+	v.ev = &ev
+	return nil
 }

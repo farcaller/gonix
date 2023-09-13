@@ -48,8 +48,15 @@ func (state *State) NewExternalValue(val ExternalValue) (*Value, error) {
 	if cev == nil {
 		return nil, NewContext().lastError()
 	}
+	// It's a mess of ownership so just to be on the safe side:
+	// h refs both the val (that we sent into the C api via a cgo.Handle) and the
+	// C.ExternalValue. We pass the handle into the Value, which (supposedly)
+	// refcounts the C.ExternalValue on its own, but it will also ref the handle.
+	// Now if everything works well, the Value retains a reference to the go's
+	// val. So everything works. I think.
+	//
+	// What a mess.
 	h := externalValueHandle{ev, cev}
-	// FIXME: finalizing this thing is a mess. Who owns what anyway??
 	runtime.SetFinalizer(&h, func(v *externalValueHandle) {
 		C.nix_gc_decref(state.context().ccontext, unsafe.Pointer(v.cev))
 	})
