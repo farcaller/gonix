@@ -22,7 +22,10 @@ func mustEvalString(state *gonix.State, expr string) string {
 
 func main() {
 	ctx := gonix.NewContext()
-	store := gonix.NewStore(ctx, "", nil)
+	store, err := gonix.NewStore(ctx, "", nil)
+	if err != nil {
+		panic(fmt.Errorf("failed to create a store: %v", err))
+	}
 	state := store.NewState(strings.Split(os.Getenv("NIX_PATH"), ":"))
 
 	path := mustEvalString(state, "(import <nixpkgs> {}).hello.drvPath")

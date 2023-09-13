@@ -1,0 +1,19 @@
+{
+  "cSpell.words": [
+    "builtins",
+    "ccontext",
+    "cerr",
+    "cexpr",
+    "cpath",
+    "cstate",
+    "cstore",
+    "cvalue",
+    "gonix",
+    "libexpr",
+    "libstore",
+    "libutil",
+    "longlong",
+    "Ptrs",
+    "stdlib"
+  ]
+}

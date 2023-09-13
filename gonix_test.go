@@ -8,7 +8,10 @@ import (
 
 func Example() {
 	ctx := gonix.NewContext()
-	store := gonix.NewStore(ctx, "", nil)
+	store, err := gonix.NewStore(ctx, "dummy", nil)
+	if err != nil {
+		panic(fmt.Errorf("failed to create a store: %v", err))
+	}
 	state := store.NewState(nil)
 
 	val, err := state.EvalExpr("builtins.toJSON { answer = 42; }", ".")
@@ -23,4 +26,14 @@ func Example() {
 
 	fmt.Println(*strVal)
 	// Output: {"answer":42}
+}
+func ExampleGetSetting() {
+	ctx := gonix.NewContext()
+	val, err := gonix.GetSetting(ctx, "trace-verbose")
+	if err != nil {
+		panic(fmt.Errorf("failed to read the setting: %v", err))
+	}
+
+	fmt.Println(val)
+	// Output: false
 }
