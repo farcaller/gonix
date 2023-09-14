@@ -29,14 +29,10 @@
 
               modules = [
                 {
-                  # env.LDFLAGS = "-F${pkgs.darwin.CF}/Library/Frameworks";
-                  # env.LDFLAGS = "-F/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks";
-
                   languages.nix.enable = true;
                   languages.go.enable = true;
                   
                   packages = [
-                    nixPkg
                     nixPkg.dev
                     pkgs.pkg-config
                   ];
