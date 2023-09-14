@@ -99,12 +99,6 @@ func (v *Value) SetFloat(f float64) error {
 	return nixError(cerr, v.context())
 }
 
-func (v *Value) SetInt(i int64) error {
-	v.ev = nil
-	cerr := C.nix_set_int(v.context().ccontext, v.cvalue, C.longlong(i))
-	return nixError(cerr, v.context())
-}
-
 func (v *Value) SetNull() error {
 	v.ev = nil
 	cerr := C.nix_set_null(v.context().ccontext, v.cvalue)
