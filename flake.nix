@@ -31,6 +31,7 @@
                 {
                   languages.nix.enable = true;
                   languages.go.enable = true;
+                  languages.c.enable = true;
                   
                   packages = [
                     nixPkg.dev
