@@ -2,11 +2,11 @@ package gonix
 
 // #cgo pkg-config: nix-expr-c
 // #include <stdlib.h>
-// #include <stdio.h>
-// #include <nix_api_util.h>
-// #include <nix_api_expr.h>
-// #include <nix_api_value.h>
-// void nixStoreBuildCallback_cgo(void * userdata, const char * outname, const char * out);
+// #include <nix_api_store.h>
+/*
+typedef const char cchar_t;
+void nixStoreBuildCallback_cgo(void * userdata, cchar_t * outname, cchar_t * out);
+*/
 import "C"
 
 import (
@@ -43,7 +43,7 @@ func (s *Store) context() *Context {
 }
 
 //export nixStoreBuildCallback
-func nixStoreBuildCallback(userdata unsafe.Pointer, outname, out *C.char) {
+func nixStoreBuildCallback(userdata unsafe.Pointer, outname, out *C.cchar_t) {
 	h := cgo.Handle(userdata)
 	bo := h.Value().(BuildOutputs)
 	bo[C.GoString(outname)] = C.GoString(out)
@@ -76,11 +76,14 @@ type BuildOutputs map[string]string
 // Build builds the store path, returning the realised outputs.
 func (sp *StorePath) Build() (BuildOutputs, error) {
 	bo := BuildOutputs{}
+	boh := cgo.NewHandle(bo)
+	defer boh.Delete()
+
 	cerr := C.nix_store_build(
 		sp.store.ctx.ccontext,
 		sp.store.cstore,
 		sp.cstorepath,
-		unsafe.Pointer(cgo.NewHandle(bo)),
+		unsafe.Pointer(boh),
 		(*[0]byte)(C.nixStoreBuildCallback_cgo),
 	)
 	err := nixError(cerr, sp.store.context())

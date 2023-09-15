@@ -2,17 +2,17 @@ package gonix
 
 // #cgo pkg-config: nix-expr-c
 // #include <stdlib.h>
-// #include <nix_api_util.h>
 // #include <nix_api_expr.h>
-// #include <nix_api_value.h>
 import "C"
 import (
 	"runtime"
 	"unsafe"
 )
 
+// State is the execution state in a given [Store].
 type State struct {
-	store  *Store
+	_store *Store
+	ctx    *Context
 	cstate *C.State
 }
 
@@ -31,7 +31,7 @@ func (s *Store) NewState(searchPath []string) *State {
 
 	cstate := C.nix_state_create(s.context().ccontext, cSearchPath, s.cstore)
 	runtime.SetFinalizer(cstate, finalizeState)
-	return &State{s, cstate}
+	return &State{s, s.context(), cstate}
 }
 
 func finalizeState(cstate *C.State) {
@@ -39,12 +39,12 @@ func finalizeState(cstate *C.State) {
 }
 
 func (s *State) context() *Context {
-	return s.store.context()
+	return s.ctx
 }
 
 // EvalExpr evaluates the expression and returns the result.
 func (s *State) EvalExpr(expr, path string) (*Value, error) {
-	ret, err := NewValue(s)
+	ret, err := newValue(s)
 	if err != nil {
 		return nil, err
 	}
@@ -60,11 +60,17 @@ func (s *State) EvalExpr(expr, path string) (*Value, error) {
 
 // Call calls a given function with a given argument and returns tne result.
 func (s *State) Call(fun, argument *Value) (*Value, error) {
-	ret, err := NewValue(s)
+	ret, err := newValue(s)
 	if err != nil {
 		return nil, err
 	}
-	cerr := C.nix_value_call(s.context().ccontext, s.cstate, fun.cvalue, argument.cvalue, ret.cvalue)
+
+	var carg unsafe.Pointer
+	if argument != nil {
+		carg = argument.cvalue
+	}
+
+	cerr := C.nix_value_call(s.context().ccontext, s.cstate, fun.cvalue, carg, ret.cvalue)
 	err = nixError(cerr, s.context())
 	if err != nil {
 		return nil, err
@@ -74,7 +80,7 @@ func (s *State) Call(fun, argument *Value) (*Value, error) {
 
 // NewInt returns a Value containing an integer.
 func (s *State) NewInt(i int64) (*Value, error) {
-	v, err := NewValue(s)
+	v, err := newValue(s)
 	if err != nil {
 		return nil, err
 	}
@@ -85,13 +91,104 @@ func (s *State) NewInt(i int64) (*Value, error) {
 	return v, nil
 }
 
+// NewInt returns a Value containing a float.
+func (s *State) NewFloat(f float64) (*Value, error) {
+	v, err := newValue(s)
+	if err != nil {
+		return nil, err
+	}
+	err = v.SetFloat(f)
+	if err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
 // NewBool returns a Value containing a bool.
 func (s *State) NewBool(b bool) (*Value, error) {
-	v, err := NewValue(s)
+	v, err := newValue(s)
 	if err != nil {
 		return nil, err
 	}
 	err = v.SetBool(b)
+	if err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+// NewString returns a Value containing a string.
+func (s *State) NewString(st string) (*Value, error) {
+	v, err := newValue(s)
+	if err != nil {
+		return nil, err
+	}
+	err = v.SetString(st)
+	if err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+// NewPath returns a Value containing a path.
+func (s *State) NewPath(p string) (*Value, error) {
+	v, err := newValue(s)
+	if err != nil {
+		return nil, err
+	}
+	err = v.SetPath(p)
+	if err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+// NewNull returns a Value containing a null.
+func (s *State) NewNull() (*Value, error) {
+	v, err := newValue(s)
+	if err != nil {
+		return nil, err
+	}
+	err = v.SetNull()
+	if err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+// NewList returns a Value containing a list of passed items.
+func (s *State) NewList(items []*Value) (*Value, error) {
+	v, err := newValue(s)
+	if err != nil {
+		return nil, err
+	}
+	err = v.SetList(items)
+	if err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+// NewAttrs returns a Value containing an attrset.
+func (s *State) NewAttrs(attrs map[string]*Value) (*Value, error) {
+	v, err := newValue(s)
+	if err != nil {
+		return nil, err
+	}
+	err = v.SetAttrs(attrs)
+	if err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+// NewPrimOp returns a Value containing a [PrimOp].
+func (s *State) NewPrimOp(op *PrimOp) (*Value, error) {
+	v, err := newValue(s)
+	if err != nil {
+		return nil, err
+	}
+	err = v.SetPrimOp(op)
 	if err != nil {
 		return nil, err
 	}

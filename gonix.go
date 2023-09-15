@@ -66,3 +66,11 @@ func reallocatingBufferRead(ctx *Context, call func(*Context, *C.char, C.int) C.
 		return "", nixError(cerr, ctx)
 	}
 }
+
+// InitPlugins loads the plugins specified in Nix's plugin-files setting.
+//
+// This function should be called once (if needed), after all the required settings were set.
+func InitPlugins(ctx *Context) error {
+	cerr := C.nix_init_plugins(ctx.ccontext)
+	return nixError(cerr, ctx)
+}

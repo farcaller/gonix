@@ -2,13 +2,34 @@ package gonix
 
 // #cgo pkg-config: nix-expr-c
 // #include <nix_api_external.h>
-/* void externalValuePrint_cgo(void * self, nix_printer * printer) {
+/*
+void externalValuePrint_cgo(void * self, nix_printer * printer) {
 	void externalValuePrint(void * self, nix_printer * printer);
 	externalValuePrint(self, printer);
+}
+void externalValueShowType_cgo(void * self, nix_string_return * res) {
+	void externalValueShowType(void * self, nix_string_return * res);
+	externalValueShowType(self, res);
+}
+void externalValueTypeOf_cgo(void * self, nix_string_return * res) {
+	void externalValueTypeOf(void * self, nix_string_return * res);
+	externalValueTypeOf(self, res);
 }
 void externalValueCoerceToString_cgo(void * self, nix_string_context * c, int coerceMore, int copyToStore, nix_string_return * res) {
 	void externalValueCoerceToString(void * self, nix_string_context * c, int coerceMore, int copyToStore, nix_string_return * res);
 	externalValueCoerceToString(self, c, coerceMore, copyToStore, res);
+}
+int externalValueEqual_cgo(void * self, void * other) {
+	int externalValueEqual(void * self, void * other);
+	return externalValueEqual(self, other);
+}
+void externalValuePrintValueAsJSON_cgo(void * self, State * state, int strict, nix_string_context * c, bool copyToStore, nix_string_return * res) {
+	void externalValuePrintValueAsJSON(void * self, State * state, int strict, nix_string_context * c, bool copyToStore, nix_string_return * res);
+	externalValuePrintValueAsJSON(self, state, strict, c, copyToStore, res);
+}
+void finalizeExternalValue_cgo(void * obj, void * cd) {
+	void finalizeExternalValue(void * obj, void * cd);
+	finalizeExternalValue(obj, cd);
 }
 */
 import "C"
@@ -18,74 +39,92 @@ import (
 	"unsafe"
 )
 
-type ExternalValue interface {
+// ExternalValueProvider is the interface that external values must implement to
+// be passed into the nix [Value].
+type ExternalValueProvider interface {
+	// Print is called when printing the external value.
 	Print() string
+
+	// ShowType is called when `:t` is invoked on the value.
+	ShowType() string
+
+	// TypeOf is called when `builtins.typeOf` is invoked on the value.
+	TypeOf() string
+
+	// CoerceToString is called when "${str}" or `builtins.toString` is invoked on the value.
+	//
+	// if coerceMore is true, CoerceToString was invoked trough a `builtins.toString` call
+	// (which also converts nulls, integers, booleans and lists to a string).
+	//
+	// if copyToStore is true, referenced paths are copied to the Nix store as a side effect.
 	CoerceToString(addContext func(string) error, copyMore, copyToStore bool) (string, error)
+
+	// Equal is called for a comparison of two external values. If `other` is not an external
+	// value, Equal isn't called and instead `false` is always returned.
+	Equal(other ExternalValueProvider) bool
+
+	// PrintValueAsJSON is called when the value is converted to JSON. The result must
+	// be valid JSON.
+	PrintValueAsJSON(strict, copyToStore bool) string
+
+	// TODO: this api seems somewhat convoluted
+	// PrintValueAsXML(strict, location, copyToStore bool) string
 }
 
-type externalValue struct {
-	ctx *Context
-	v   ExternalValue
-}
-
-type externalValueHandle struct {
-	goev externalValue
-	cev  *C.ExternalValue
+// ExternalValue is a wrapper around a go value passed into nix.
+type ExternalValue struct {
+	cev *C.ExternalValue
 }
 
 var desc C.NixCExternalValueDesc
 
 func init() {
 	desc = C.NixCExternalValueDesc{
-		print:          (*[0]byte)(C.externalValuePrint_cgo),
-		coerceToString: (*[0]byte)(C.externalValueCoerceToString_cgo),
+		print:            (*[0]byte)(C.externalValuePrint_cgo),
+		showType:         (*[0]byte)(C.externalValueShowType_cgo),
+		typeOf:           (*[0]byte)(C.externalValueTypeOf_cgo),
+		coerceToString:   (*[0]byte)(C.externalValueCoerceToString_cgo),
+		equal:            (*[0]byte)(C.externalValueEqual_cgo),
+		printValueAsJSON: (*[0]byte)(C.externalValuePrintValueAsJSON_cgo),
 	}
 }
 
-func (state *State) NewExternalValue(val ExternalValue) (*Value, error) {
-	ev := externalValue{state.context(), val}
-	cev := C.nix_create_external_value(state.context().ccontext, &desc, unsafe.Pointer(cgo.NewHandle(ev)))
+// NewExternalValue returns a Value containing an external value.
+func (state *State) NewExternalValue(val ExternalValueProvider) (*Value, error) {
+	h := cgo.NewHandle(val)
+	cev := C.nix_create_external_value(state.context().ccontext, &desc, unsafe.Pointer(h))
 	if cev == nil {
 		return nil, NewContext().lastError()
 	}
-	// It's a mess of ownership so just to be on the safe side:
-	// h refs both the val (that we sent into the C api via a cgo.Handle) and the
-	// C.ExternalValue. We pass the handle into the Value, which (supposedly)
-	// refcounts the C.ExternalValue on its own, but it will also ref the handle.
-	// Now if everything works well, the Value retains a reference to the go's
-	// val. So everything works. I think.
-	//
-	// What a mess.
-	h := externalValueHandle{ev, cev}
-	runtime.SetFinalizer(&h, func(v *externalValueHandle) {
-		C.nix_gc_decref(state.context().ccontext, unsafe.Pointer(v.cev))
+	C.nix_gc_register_finalizer(unsafe.Pointer(cev), unsafe.Pointer(h), (*[0]byte)(C.finalizeExternalValue_cgo))
+
+	ev := &ExternalValue{cev}
+	runtime.SetFinalizer(ev, func(v *ExternalValue) {
+		C.nix_gc_decref(nil, unsafe.Pointer(v.cev))
 	})
 
-	v, err := NewValue(state)
+	v, err := newValue(state)
 	if err != nil {
 		return nil, err
 	}
-	err = v.SetExternalValue(h)
+	err = v.SetExternalValue(ev)
 	if err != nil {
 		return nil, err
 	}
 	return v, nil
 }
 
-func (ev *externalValue) print(pr *C.nix_printer) error {
-	cerr := C.nix_external_print(ev.ctx.ccontext, pr, C.CString(ev.v.Print()))
-	return nixError(cerr, ev.ctx)
+// Content returns the [ExternalValueProvider] of this value.
+func (ev *ExternalValue) Content() ExternalValueProvider {
+	// TODO: context?
+	hp := C.nix_get_external_value_content(nil, ev.cev)
+	if hp == nil {
+		return nil
+	}
+	h := cgo.Handle(hp)
+	return h.Value().(ExternalValueProvider)
 }
 
-func (ev *externalValue) coerceToString(c *C.nix_string_context, coerceMore, copyToStore C.int, res *C.nix_string_return) error {
-	addCtx := func(s string) error {
-		cerr := C.nix_external_add_string_context(ev.ctx.ccontext, c, C.CString(s))
-		return nixError(cerr, ev.ctx)
-	}
-	ret, err := ev.v.CoerceToString(addCtx, coerceMore != 0, copyToStore != 0)
-	if err != nil {
-		return err
-	}
-	C.nix_set_string_return(res, C.CString(ret))
-	return nil
+func (ev ExternalValue) String() string {
+	return ev.Content().Print()
 }

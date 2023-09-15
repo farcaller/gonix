@@ -24,7 +24,7 @@ func Example() {
 		panic(fmt.Errorf("failed to convert the value to string: %v", err))
 	}
 
-	fmt.Println(*strVal)
+	fmt.Println(strVal)
 	// Output: {"answer":42}
 }
 func ExampleGetSetting() {
