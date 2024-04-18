@@ -1,6 +1,6 @@
 {
   inputs = {
-    nix.url = "github:tweag/nix/nix-c-bindings";
+    nix.url = "github:nixos/nix";
     nixpkgs.follows = "nix/nixpkgs";
     # nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     systems.url = "github:nix-systems/default";
@@ -12,34 +12,45 @@
     extra-substituters = "https://devenv.cachix.org";
   };
 
-  outputs = { self, nixpkgs, nix, devenv, systems, ... } @ inputs:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      nix,
+      devenv,
+      systems,
+      ...
+    }@inputs:
     let
       forEachSystem = nixpkgs.lib.genAttrs (import systems);
     in
     {
-      devShells = forEachSystem
-        (system:
-          let
-            pkgs = nixpkgs.legacyPackages.${system};
-            nixPkg = nix.packages.${system}.nix;
-          in
-          {
-            default = devenv.lib.mkShell {
-              inherit inputs pkgs;
+      devShells = forEachSystem (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+          nixPkg = nix.packages.${system}.nix;
+        in
+        {
+          default = devenv.lib.mkShell {
+            inherit inputs pkgs;
 
-              modules = [
-                {
-                  languages.nix.enable = true;
-                  languages.go.enable = true;
-                  languages.c.enable = true;
-                  
-                  packages = [
-                    nixPkg.dev
-                    pkgs.pkg-config
-                  ];
-                }
-              ];
-            };
-          });
+            modules = [
+              {
+                env.hardeningDisable = [ "fortify" ];
+                languages.nix.enable = true;
+                languages.go.enable = true;
+                languages.c.enable = true;
+
+                packages = [
+                  nixPkg.dev
+                  pkgs.pkg-config
+                  pkgs.delve
+                ];
+              }
+            ];
+          };
+        }
+      );
     };
 }

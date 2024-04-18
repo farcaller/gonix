@@ -4,10 +4,16 @@ package gonix
 // #include <stdlib.h>
 // #include <nix_api_value.h>
 // #include <nix_api_expr.h>
+/*
+typedef const char cchar_t;
+void nixGetCallbackString_cgo(cchar_t * start, unsigned int n, char ** user_data);
+*/
 import "C"
+
 import (
 	"fmt"
 	"runtime"
+	"runtime/cgo"
 	"unsafe"
 )
 
@@ -111,6 +117,17 @@ func (v Value) String() string {
 	return fmt.Sprint(val)
 }
 
+type stringCallback func(string)
+
+//export nixGetCallbackString
+func nixGetCallbackString(str *C.cchar_t, n C.int, userdata unsafe.Pointer) {
+	// FIXME: Probably need some error handling here.
+	h := cgo.Handle(userdata)
+	v := h.Value().(*string)
+	res := C.GoStringN(str, n)
+	*v = res
+}
+
 // GetString returns the string value iff the value contains a string.
 func (v *Value) GetString() (string, error) {
 	cctx := v.context().ccontext
@@ -120,12 +137,14 @@ func (v *Value) GetString() (string, error) {
 		return "", fmt.Errorf("expected a string, got %v", typ)
 	}
 
-	s := C.nix_get_string(cctx, v.cvalue)
-	if s == nil {
-		return "", fmt.Errorf("fialed to get the string value: %v", v.context().lastError())
+	var str *string = new(string)
+	strh := cgo.NewHandle(str)
+	defer strh.Delete()
+	cerr := C.nix_get_string(cctx, v.cvalue, (*[0]byte)(C.nixGetCallbackString_cgo), unsafe.Pointer(strh))
+	if cerr != C.NIX_OK {
+		return "", fmt.Errorf("failed to get the string value: %v", v.context().lastError())
 	}
-	str := C.GoString(s)
-	return str, nil
+	return *str, nil
 }
 
 // GetInt returns the int value iff the value contains an int.
@@ -264,37 +283,37 @@ func (v *Value) GetAttrs() (map[string]*Value, error) {
 
 // SetBool sets the value to the passed bool.
 func (v *Value) SetBool(b bool) error {
-	cerr := C.nix_set_bool(v.context().ccontext, v.cvalue, C.bool(b))
+	cerr := C.nix_init_bool(v.context().ccontext, v.cvalue, C.bool(b))
 	return nixError(cerr, v.context())
 }
 
 // SetString sets the value to the passed string.
 func (v *Value) SetString(s string) error {
-	cerr := C.nix_set_string(v.context().ccontext, v.cvalue, C.CString(s))
+	cerr := C.nix_init_string(v.context().ccontext, v.cvalue, C.CString(s))
 	return nixError(cerr, v.context())
 }
 
 // SetPath sets the value to the passed string as a path.
 func (v *Value) SetPath(ps string) error {
-	cerr := C.nix_set_path_string(v.context().ccontext, v.cvalue, C.CString(ps))
+	cerr := C.nix_init_path_string(v.context().ccontext, v.state.cstate, v.cvalue, C.CString(ps))
 	return nixError(cerr, v.context())
 }
 
 // SetFloat sets the value to the passed float.
 func (v *Value) SetFloat(f float64) error {
-	cerr := C.nix_set_float(v.context().ccontext, v.cvalue, C.double(f))
+	cerr := C.nix_init_float(v.context().ccontext, v.cvalue, C.double(f))
 	return nixError(cerr, v.context())
 }
 
 // SetNull sets the value to null.
 func (v *Value) SetNull() error {
-	cerr := C.nix_set_null(v.context().ccontext, v.cvalue)
+	cerr := C.nix_init_null(v.context().ccontext, v.cvalue)
 	return nixError(cerr, v.context())
 }
 
 // SetExternalValue sets the value to the passed external value.
 func (v *Value) SetExternalValue(ev *ExternalValue) error {
-	cerr := C.nix_set_external(v.context().ccontext, v.cvalue, ev.cev)
+	cerr := C.nix_init_external(v.context().ccontext, v.cvalue, ev.cev)
 	err := nixError(cerr, v.context())
 	if err != nil {
 		return err
@@ -304,18 +323,19 @@ func (v *Value) SetExternalValue(ev *ExternalValue) error {
 
 // SetList sets the value to the passed list.
 func (v *Value) SetList(items []*Value) error {
-	cerr := C.nix_make_list(v.context().ccontext, v.state.cstate, v.cvalue, (C.uint)(len(items)))
-	err := nixError(cerr, v.context())
-	if err != nil {
-		return err
+	clb := C.nix_make_list_builder(v.context().ccontext, v.state.cstate, (C.ulong)(len(items)))
+	if clb == nil {
+		return v.context().lastError()
 	}
 	for idx, item := range items {
-		cerr := C.nix_set_list_byidx(v.context().ccontext, v.cvalue, (C.uint)(idx), item.cvalue)
+		cerr := C.nix_list_builder_insert(v.context().ccontext, clb, (C.uint)(idx), item.cvalue)
 		err := nixError(cerr, v.context())
 		if err != nil {
 			return err
 		}
 	}
+	C.nix_make_list(v.context().ccontext, clb, v.cvalue)
+	C.nix_list_builder_free(clb)
 	return nil
 }
 
@@ -344,6 +364,6 @@ func (v *Value) SetAttrs(attrs map[string]*Value) error {
 
 // SetPrimOp sets the value to the passed PrimOp.
 func (v *Value) SetPrimOp(op *PrimOp) error {
-	cerr := C.nix_set_primop(v.context().ccontext, v.cvalue, op.cprimop)
+	cerr := C.nix_init_primop(v.context().ccontext, v.cvalue, op.cprimop)
 	return nixError(cerr, v.context())
 }

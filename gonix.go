@@ -8,8 +8,16 @@ package gonix
 // #include <nix_api_util.h>
 // #include <nix_api_expr.h>
 // #include <nix_api_value.h>
+/*
+typedef const char cchar_t;
+void nixGetCallbackString_cgo(cchar_t * start, unsigned int n, char ** user_data);
+*/
 import "C"
-import "unsafe"
+
+import (
+	"runtime/cgo"
+	"unsafe"
+)
 
 func init() {
 	C.nix_libutil_init(nil)
@@ -32,9 +40,14 @@ func Version() string {
 
 // GetSetting returns the value of a setting.
 func GetSetting(ctx *Context, name string) (string, error) {
-	return reallocatingBufferRead(ctx, func(ctx *Context, buf *C.char, bl C.int) C.int {
-		return C.nix_setting_get(ctx.ccontext, C.CString(name), buf, bl)
-	})
+	var str *string = new(string)
+	strh := cgo.NewHandle(str)
+	defer strh.Delete()
+	cerr := C.nix_setting_get(ctx.ccontext, C.CString(name), (*[0]byte)(C.nixGetCallbackString_cgo), unsafe.Pointer(strh))
+	if cerr != C.NIX_OK {
+		return "", nixError(cerr, ctx)
+	}
+	return *str, nil
 }
 
 // SetSetting sets the setting to the passed value. This value affects all the
@@ -47,25 +60,7 @@ func SetSetting(ctx *Context, name, value string) error {
 
 const maxBufferSize = 1024 * 10
 
-func reallocatingBufferRead(ctx *Context, call func(*Context, *C.char, C.int) C.int) (string, error) {
-	sz := 1
-	for {
-		currentSize := 1024 * sz
-		if currentSize > maxBufferSize {
-			return "", nixError(C.NIX_ERR_OVERFLOW, nil)
-		}
-		buf := make([]byte, currentSize)
-		cerr := call(ctx, (*C.char)(unsafe.Pointer(&buf[0])), C.int(len(buf)))
-		if cerr == C.NIX_OK {
-			return C.GoString((*C.char)(unsafe.Pointer(&buf[0]))), nil
-		}
-		if cerr == C.NIX_ERR_OVERFLOW {
-			sz += 1
-			continue
-		}
-		return "", nixError(cerr, ctx)
-	}
-}
+// type  nixStringCallback func(start *char[0] , n int, data *void)
 
 // InitPlugins loads the plugins specified in Nix's plugin-files setting.
 //

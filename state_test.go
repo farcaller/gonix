@@ -163,14 +163,14 @@ func ExampleState_NewPath() {
 	}
 	state := store.NewState(nil)
 
-	s, err := state.NewPath("./.")
+	s, err := state.NewPath("/foo/bar")
 	if err != nil {
 		panic(fmt.Errorf("failed to create a path: %v", err))
 	}
 
 	fmt.Println(s)
 	// Output:
-	// ./.
+	// /foo/bar
 }
 
 func ExampleState_NewNull() {
