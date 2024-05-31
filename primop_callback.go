@@ -19,7 +19,7 @@ func finalizePrimOp(obj, cd unsafe.Pointer) {
 }
 
 //export nixPrimOp
-func nixPrimOp(funh unsafe.Pointer, cctx *C.nix_c_context, cstate *C.State, cargs unsafe.Pointer, cret unsafe.Pointer) {
+func nixPrimOp(funh unsafe.Pointer, cctx *C.nix_c_context, cstate *C.EvalState, cargs unsafe.Pointer, cret unsafe.Pointer) {
 	h := cgo.Handle(funh)
 	poh := h.Value().(primOpHandle)
 

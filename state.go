@@ -4,6 +4,7 @@ package gonix
 // #include <stdlib.h>
 // #include <nix_api_expr.h>
 import "C"
+
 import (
 	"runtime"
 	"unsafe"
@@ -13,7 +14,7 @@ import (
 type State struct {
 	_store *Store
 	ctx    *Context
-	cstate *C.State
+	cstate *C.EvalState
 }
 
 // NewState creates a new execution state.
@@ -34,7 +35,7 @@ func (s *Store) NewState(searchPath []string) *State {
 	return &State{s, s.context(), cstate}
 }
 
-func finalizeState(cstate *C.State) {
+func finalizeState(cstate *C.EvalState) {
 	C.nix_state_free(cstate)
 }
 

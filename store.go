@@ -35,7 +35,7 @@ func NewStore(ctx *Context, uri string, params map[string]string) (*Store, error
 }
 
 func finalizeStore(cstore *C.Store) {
-	C.nix_store_unref(cstore)
+	C.nix_store_free(cstore)
 }
 
 func (s *Store) context() *Context {
@@ -79,7 +79,7 @@ func (sp *StorePath) Build() (BuildOutputs, error) {
 	boh := cgo.NewHandle(bo)
 	defer boh.Delete()
 
-	cerr := C.nix_store_build(
+	cerr := C.nix_store_realise(
 		sp.store.ctx.ccontext,
 		sp.store.cstore,
 		sp.cstorepath,
@@ -103,9 +103,12 @@ func (sp *StorePath) Build() (BuildOutputs, error) {
 //
 //	"daemon", nil
 func (s *Store) URI() (string, error) {
-	return reallocatingBufferRead(s.context(), func(ctx *Context, buf *C.char, bl C.int) C.int {
-		return C.nix_store_get_uri(ctx.ccontext, s.cstore, buf, (C.uint)(bl))
-	})
+	var buf *[0]byte
+	cerr := C.nix_store_get_uri(s.context().ccontext, s.cstore, buf, unsafe.Pointer(nil))
+	if cerr != C.NIX_OK {
+		return "", s.context().lastError()
+	}
+	return C.GoString((*C.char)(unsafe.Pointer(buf))), nil
 }
 
 // Version returns the version of the store.
@@ -118,7 +121,10 @@ func (s *Store) URI() (string, error) {
 //
 //	"2.13.5", nil
 func (s *Store) Version() (string, error) {
-	return reallocatingBufferRead(s.context(), func(ctx *Context, buf *C.char, bl C.int) C.int {
-		return C.nix_store_get_version(ctx.ccontext, s.cstore, buf, (C.uint)(bl))
-	})
+	var buf *[0]byte
+	cerr := C.nix_store_get_version(s.context().ccontext, s.cstore, buf, unsafe.Pointer(nil))
+	if cerr != C.NIX_OK {
+		return "", s.context().lastError()
+	}
+	return C.GoString((*C.char)(unsafe.Pointer(buf))), nil
 }

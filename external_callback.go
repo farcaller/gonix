@@ -64,7 +64,7 @@ func externalValueEqual(self unsafe.Pointer, other unsafe.Pointer) C.int {
 }
 
 //export externalValuePrintValueAsJSON
-func externalValuePrintValueAsJSON(self unsafe.Pointer, state *C.State, strict int, c *C.nix_string_context, copyToStore bool, res *C.nix_string_return) {
+func externalValuePrintValueAsJSON(self unsafe.Pointer, state *C.EvalState, strict int, c *C.nix_string_context, copyToStore bool, res *C.nix_string_return) {
 	h := cgo.Handle(self)
 	v := h.Value().(ExternalValueProvider)
 

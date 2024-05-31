@@ -23,8 +23,8 @@ int externalValueEqual_cgo(void * self, void * other) {
 	int externalValueEqual(void * self, void * other);
 	return externalValueEqual(self, other);
 }
-void externalValuePrintValueAsJSON_cgo(void * self, State * state, int strict, nix_string_context * c, bool copyToStore, nix_string_return * res) {
-	void externalValuePrintValueAsJSON(void * self, State * state, int strict, nix_string_context * c, bool copyToStore, nix_string_return * res);
+void externalValuePrintValueAsJSON_cgo(void * self, EvalState * state, int strict, nix_string_context * c, bool copyToStore, nix_string_return * res) {
+	void externalValuePrintValueAsJSON(void * self, EvalState * state, int strict, nix_string_context * c, bool copyToStore, nix_string_return * res);
 	externalValuePrintValueAsJSON(self, state, strict, c, copyToStore, res);
 }
 void finalizeExternalValue_cgo(void * obj, void * cd) {
@@ -33,6 +33,7 @@ void finalizeExternalValue_cgo(void * obj, void * cd) {
 }
 */
 import "C"
+
 import (
 	"runtime"
 	"runtime/cgo"

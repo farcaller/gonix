@@ -6,8 +6,8 @@ package gonix
 // #include <nix_api_value.h>
 // #include <nix_api_expr.h>
 /*
-void nixPrimOp_cgo(void * user_data, nix_c_context * context, State * state, Value ** args, Value * ret) {
-	void nixPrimOp(void * user_data, nix_c_context * context, State * state, Value ** args, Value * ret);
+void nixPrimOp_cgo(void * user_data, nix_c_context * context, EvalState * state, Value ** args, Value * ret) {
+	void nixPrimOp(void * user_data, nix_c_context * context, EvalState * state, Value ** args, Value * ret);
 	nixPrimOp(user_data, context, state, args, ret);
 }
 void finalizePrimOp_cgo(void * obj, void * cd) {
@@ -16,6 +16,7 @@ void finalizePrimOp_cgo(void * obj, void * cd) {
 }
 */
 import "C"
+
 import (
 	"errors"
 	"runtime"
