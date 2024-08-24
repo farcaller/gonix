@@ -30,12 +30,13 @@ func NewStore(ctx *Context, uri string, params map[string]string) (*Store, error
 	if cstore == nil {
 		return nil, ctx.lastError()
 	}
-	runtime.SetFinalizer(cstore, finalizeStore)
-	return &Store{ctx, cstore}, nil
+	s := &Store{ctx, cstore}
+	runtime.SetFinalizer(s, finalizeStore)
+	return s, nil
 }
 
-func finalizeStore(cstore *C.Store) {
-	C.nix_store_free(cstore)
+func finalizeStore(store *Store) {
+	C.nix_store_free(store.cstore)
 }
 
 func (s *Store) context() *Context {

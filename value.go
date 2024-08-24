@@ -41,10 +41,11 @@ type Value struct {
 }
 
 func wrapValue(state *State, cvalue unsafe.Pointer) (*Value, error) {
-	runtime.SetFinalizer(&cvalue, func(v *unsafe.Pointer) {
-		C.nix_gc_decref(state.context().ccontext, *v)
+	value := &Value{state, cvalue}
+	runtime.SetFinalizer(value, func(v *Value) {
+		C.nix_gc_decref(state.context().ccontext, v.cvalue)
 	})
-	return &Value{state, cvalue}, nil
+	return value, nil
 }
 
 // newValue creates a new value.

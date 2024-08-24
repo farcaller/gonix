@@ -14,12 +14,13 @@ type Context struct {
 // NewContext creates a new context.
 func NewContext() *Context {
 	cctx := C.nix_c_context_create()
-	runtime.SetFinalizer(cctx, finalizeContext)
-	return &Context{cctx}
+	ctx := &Context{cctx}
+	runtime.SetFinalizer(ctx, finalizeContext)
+	return ctx
 }
 
-func finalizeContext(cctx *C.nix_c_context) {
-	C.nix_c_context_free(cctx)
+func finalizeContext(ctx *Context) {
+	C.nix_c_context_free(ctx.ccontext)
 }
 
 func (c *Context) lastError() error {

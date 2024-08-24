@@ -34,12 +34,13 @@ func (s *Store) NewState(searchPath []string) *State {
 	if cstate == nil {
 		return nil
 	}
-	runtime.SetFinalizer(cstate, finalizeState)
-	return &State{s, s.context(), cstate}
+	state := &State{s, s.context(), cstate}
+	runtime.SetFinalizer(state, finalizeState)
+	return state
 }
 
-func finalizeState(cstate *C.EvalState) {
-	C.nix_state_free(cstate)
+func finalizeState(state *State) {
+	C.nix_state_free(state.cstate)
 }
 
 func (s *State) context() *Context {
