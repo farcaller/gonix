@@ -31,6 +31,9 @@ func (s *Store) NewState(searchPath []string) *State {
 	}
 
 	cstate := C.nix_state_create(s.context().ccontext, cSearchPath, s.cstore)
+	if cstate == nil {
+		return nil
+	}
 	runtime.SetFinalizer(cstate, finalizeState)
 	return &State{s, s.context(), cstate}
 }
