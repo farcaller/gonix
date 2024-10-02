@@ -7,9 +7,11 @@ Card](https://goreportcard.com/badge/github.com/farcaller/gonix)](https://gorepo
 ## Building
 
 These bindings depend on the Nix C API, which is currently only available in nix
-master. You must pull nix from `github:nixos/nix`, and make
-both `nix.dev` and `pkg-config` available in your `buildInputs` for the CGO
-bindings to work. Consult the `flake.nix` for an example.
+master. It's a moving target, and while we try to catch up, sometimes the API is
+broken so you must pull nix from the **same revision** that's tracked in this
+flake's `nix`, and make both `nix.dev` and `pkg-config` available in your
+`buildInputs` for the CGO bindings to work. Consult the `flake.nix` for an
+example.
 
 ## API Docs
 
