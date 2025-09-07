@@ -1,9 +1,11 @@
 package gonix
 
-// #cgo pkg-config: nix-expr-c
+// #cgo pkg-config: nix-expr-c nix-main-c
 // #include <stdlib.h>
+// #include <nix_api_util.h>
 // #include <nix_api_value.h>
 // #include <nix_api_expr.h>
+// #include <nix_api_main.h>
 /*
 typedef const char cchar_t;
 void nixGetCallbackString_cgo(cchar_t * start, unsigned int n, char ** user_data);
@@ -37,12 +39,12 @@ const (
 // Value is a wrapper around a nix value.
 type Value struct {
 	state  *State
-	cvalue unsafe.Pointer
+	cvalue *C.nix_value
 }
 
-func wrapValue(state *State, cvalue unsafe.Pointer) (*Value, error) {
-	runtime.SetFinalizer(&cvalue, func(v *unsafe.Pointer) {
-		C.nix_gc_decref(state.context().ccontext, *v)
+func wrapValue(state *State, cvalue *C.nix_value) (*Value, error) {
+	runtime.SetFinalizer(&cvalue, func(v **C.nix_value) {
+		C.nix_gc_decref(state.context().ccontext, unsafe.Pointer(*v))
 	})
 	return &Value{state, cvalue}, nil
 }
@@ -54,7 +56,7 @@ func wrapValue(state *State, cvalue unsafe.Pointer) (*Value, error) {
 func newValue(state *State) (*Value, error) {
 	cvalue := C.nix_alloc_value(state.context().ccontext, state.cstate)
 	if cvalue == nil {
-		return nil, NewContext().lastError()
+		return nil, state.context().lastError()
 	}
 	return wrapValue(state, cvalue)
 }
@@ -63,7 +65,7 @@ func (v *Value) context() *Context {
 	return v.state.ctx
 }
 
-// Force forces the evaluation of a Nix value.
+// Force forces the evaluation of a nix value.
 func (v *Value) Force() error {
 	cerr := C.nix_value_force(v.context().ccontext, v.state.cstate, v.cvalue)
 	return nixError(cerr, v.context())
@@ -82,7 +84,7 @@ func (v *Value) Type() ValueType {
 	return (ValueType)(t)
 }
 
-func (v Value) String() string {
+func (v *Value) String() string {
 	var val, err any
 	switch v.Type() {
 	case NixTypeThunk:

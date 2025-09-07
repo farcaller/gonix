@@ -1,8 +1,11 @@
 package gonix
 
-// #cgo pkg-config: nix-expr-c
+// #cgo pkg-config: nix-expr-c nix-main-c
 // #include <stdlib.h>
+// #include <nix_api_util.h>
 // #include <nix_api_expr.h>
+// #include <nix_api_value.h>
+// #include <nix_api_main.h>
 import "C"
 
 import (
@@ -28,6 +31,9 @@ func (s *Store) NewState(searchPath []string) *State {
 	var cSearchPath **C.char
 	if len(searchPath) > 0 {
 		cSearchPath = (**C.char)(unsafe.Pointer(&searchPathPtrs[0]))
+	} else {
+		var cNull *C.char
+		cSearchPath = &cNull
 	}
 
 	cstate := C.nix_state_create(s.context().ccontext, cSearchPath, s.cstore)
@@ -53,7 +59,11 @@ func (s *State) EvalExpr(expr, path string) (*Value, error) {
 		return nil, err
 	}
 	cexpr := C.CString(expr)
+	defer C.free(unsafe.Pointer(cexpr))
+
 	cpath := C.CString(path)
+	defer C.free(unsafe.Pointer(cpath))
+
 	cerr := C.nix_expr_eval_from_string(s.context().ccontext, s.cstate, cexpr, cpath, ret.cvalue)
 	err = nixError(cerr, s.context())
 	if err != nil {
@@ -69,7 +79,7 @@ func (s *State) Call(fun, argument *Value) (*Value, error) {
 		return nil, err
 	}
 
-	var carg unsafe.Pointer
+	var carg *C.nix_value
 	if argument != nil {
 		carg = argument.cvalue
 	}

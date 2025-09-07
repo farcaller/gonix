@@ -1,17 +1,18 @@
 package gonix
 
-// #cgo pkg-config: nix-expr-c
+// #cgo pkg-config: nix-expr-c nix-main-c
 // #include <stdlib.h>
 // #include <nix_api_util.h>
 // #include <nix_api_expr.h>
 // #include <nix_api_value.h>
+// #include <nix_api_main.h>
 import "C"
 import (
 	"errors"
 	"fmt"
 )
 
-func nixError(err C.int, ctx *Context) error {
+func nixError(err C.nix_err, ctx *Context) error {
 	switch err {
 	case C.NIX_OK:
 		return nil

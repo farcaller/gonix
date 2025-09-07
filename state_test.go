@@ -14,7 +14,7 @@ func ExampleState_Call() {
 	}
 	state := store.NewState(nil)
 
-	f, err := state.EvalExpr("value: value * 2", ".")
+	f, err := state.EvalExpr("cvalue: cvalue * 2", ".")
 	if err != nil {
 		panic(fmt.Errorf("failed to eval a function: %v", err))
 	}
@@ -96,7 +96,7 @@ func ExampleState_NewList() {
 		newInt(11),
 	})
 	if err != nil {
-		panic(fmt.Errorf("failed to get the string value: %v", err))
+		panic(fmt.Errorf("failed to get the string cvalue: %v", err))
 	}
 
 	fmt.Println(l)

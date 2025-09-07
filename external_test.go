@@ -28,7 +28,7 @@ func (v *simpleExternal) Equal(other gonix.ExternalValueProvider) bool {
 }
 
 func (v *simpleExternal) PrintValueAsJSON(strict, copyToStore bool) string {
-	return `{ "value" : "simpleexternal" }`
+	return `{ "cvalue" : "simpleexternal" }`
 }
 
 func ExampleState_NewExternalValue() {
@@ -91,5 +91,5 @@ func ExampleExternalValueProvider_PrintValueAsJSON() {
 	}
 
 	fmt.Println(res)
-	// Output: {"value":"simpleexternal"}
+	// Output: {"cvalue":"simpleexternal"}
 }

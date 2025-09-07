@@ -61,7 +61,7 @@ type ExternalValueProvider interface {
 	CoerceToString(addContext func(string) error, copyMore, copyToStore bool) (string, error)
 
 	// Equal is called for a comparison of two external values. If `other` is not an external
-	// value, Equal isn't called and instead `false` is always returned.
+	// cvalue, Equal isn't called and instead `false` is always returned.
 	Equal(other ExternalValueProvider) bool
 
 	// PrintValueAsJSON is called when the value is converted to JSON. The result must
@@ -72,7 +72,7 @@ type ExternalValueProvider interface {
 	// PrintValueAsXML(strict, location, copyToStore bool) string
 }
 
-// ExternalValue is a wrapper around a go value passed into nix.
+// ExternalValue is a wrapper around a go cvalue passed into nix.
 type ExternalValue struct {
 	cev *C.ExternalValue
 }

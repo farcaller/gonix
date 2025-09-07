@@ -3,6 +3,7 @@
 package gonix
 
 // #cgo pkg-config: nix-expr-c
+// #include <nix_api_util.h>
 // #include <nix_api_value.h>
 import "C"
 

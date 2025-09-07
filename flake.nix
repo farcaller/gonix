@@ -1,8 +1,6 @@
 {
   inputs = {
-    nix.url = "github:nixos/nix";
-    nixpkgs.follows = "nix/nixpkgs";
-    # nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
     systems.url = "github:nix-systems/default";
     devenv.url = "github:cachix/devenv";
   };
@@ -13,44 +11,40 @@
   };
 
   outputs =
-    {
-      self,
-      nixpkgs,
-      nix,
-      devenv,
-      systems,
-      ...
+    { self
+    , nixpkgs
+    , devenv
+    , systems
+    , ...
     }@inputs:
     let
       forEachSystem = nixpkgs.lib.genAttrs (import systems);
     in
     {
-      devShells = forEachSystem (
-        system:
+
+      packages = forEachSystem (system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
-          nixPkg = nix.packages.${system}.nix;
+          nixPkg = pkgs.nixVersions.nix_2_30;
         in
         {
-          default = devenv.lib.mkShell {
-            inherit inputs pkgs;
+          default = pkgs.buildGoModule {
+            name = "gonix";
+            src = ./.;
+            vendorHash = null;
+            env.CGO_ENABLED = 1;
+            nativeBuildInputs = [ pkgs.pkg-config ];
+            buildInputs = [ nixPkg ];
+            # this is not actually required for the build, but
+            # for tests that require `import <nixpkgs>`
+            NIX_PATH = "nixpkgs=${nixpkgs}";
 
-            modules = [
-              {
-                env.hardeningDisable = [ "fortify" ];
-                languages.nix.enable = true;
-                languages.go.enable = true;
-                languages.c.enable = true;
-
-                packages = [
-                  nixPkg.dev
-                  pkgs.pkg-config
-                  pkgs.delve
-                ];
-              }
-            ];
+            # gonix tests require instantiating a store, which cannot be done inside a nix build
+            # (that would be recursive nix) so when building inside nix, we disable the tests
+            #
+            # you can still run tests with nix develop -c go test ./... -v
+            doCheck = false;
           };
-        }
-      );
+        });
     };
 }

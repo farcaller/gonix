@@ -1,9 +1,10 @@
 package gonix
 
-// #cgo pkg-config: nix-expr-c
+// #cgo pkg-config: nix-expr-c nix-main-c
 // #include <nix_api_util.h>
 // #include <nix_api_expr.h>
 // #include <nix_api_value.h>
+// #include <nix_api_main.h>
 import "C"
 
 import (
@@ -19,31 +20,40 @@ func finalizePrimOp(obj, cd unsafe.Pointer) {
 }
 
 //export nixPrimOp
-func nixPrimOp(funh unsafe.Pointer, cctx *C.nix_c_context, cstate *C.EvalState, cargs unsafe.Pointer, cret unsafe.Pointer) {
-	h := cgo.Handle(funh)
+func nixPrimOp(funh unsafe.Pointer, cctx *C.nix_c_context, cstate *C.EvalState, cargs unsafe.Pointer, cret *C.nix_value) {
+	h := (*cgo.Handle)(funh)
 	poh := h.Value().(primOpHandle)
 
 	ctx := &Context{cctx}
 	state := &State{nil, ctx, cstate}
 
-	args := make([]*Value, poh.numArgs)
-	for idx := 0; idx < poh.numArgs; idx++ {
-		cargPtr := (*unsafe.Pointer)(unsafe.Pointer(uintptr(cargs) + uintptr(uintptr(idx)*unsafe.Sizeof(cargs))))
-		carg := *cargPtr
+	doError := func(err error) {
+		C.nix_set_err_msg(cctx, C.NIX_ERR_UNKNOWN, C.CString(err.Error()))
+	}
 
-		val, err := wrapValue(state, unsafe.Pointer(carg))
+	args := make([]*Value, 0, poh.numArgs)
+	for idx := 0; idx < poh.numArgs; idx++ {
+		cargPtr := (**C.nix_value)(unsafe.Pointer(uintptr(cargs) + uintptr(uintptr(idx)*unsafe.Sizeof(cret))))
+
+		val, err := wrapValue(state, *cargPtr)
 		if err != nil {
-			panic(fmt.Errorf("failed to wrap value during a primop call: %v", err))
+			doError(fmt.Errorf("failed to wrap cvalue during a primop call: %v", err))
 		}
 		err = val.Force()
 		if err != nil {
-			panic(fmt.Errorf("failed to force value during a primop call: %v", err))
+			doError(fmt.Errorf("failed to force cvalue during a primop call: %v", err))
 		}
-		args[idx] = val
+		args = append(args, val)
 	}
 
-	ret := poh.fun(ctx, state, args...)
-	if ret != nil {
-		C.nix_copy_value(cctx, unsafe.Pointer(cret), ret.cvalue)
+	retValue, err := wrapValue(state, cret)
+	if err != nil {
+		doError(fmt.Errorf("failed to wrap cvalue during a primop call: %v", err))
+		return
+	}
+
+	err = poh.fun(ctx, state, args, retValue)
+	if err != nil {
+		doError(fmt.Errorf("error during Go callback: %v", err))
 	}
 }

@@ -1,13 +1,15 @@
 package gonix
 
-// #cgo pkg-config: nix-expr-c
+// #cgo pkg-config: nix-expr-c nix-main-c
 // #include <stdlib.h>
 // #include <stdio.h>
+// #include <nix_api_util.h>
 // #include <nix_api_value.h>
 // #include <nix_api_expr.h>
+// #include <nix_api_main.h>
 /*
-void nixPrimOp_cgo(void * user_data, nix_c_context * context, EvalState * state, Value ** args, Value * ret) {
-	void nixPrimOp(void * user_data, nix_c_context * context, EvalState * state, Value ** args, Value * ret);
+void nixPrimOp_cgo(void * user_data, nix_c_context * context, EvalState * state, nix_value ** args, nix_value * ret) {
+	void nixPrimOp(void * user_data, nix_c_context * context, EvalState * state, nix_value ** args, nix_value * ret);
 	nixPrimOp(user_data, context, state, args, ret);
 }
 void finalizePrimOp_cgo(void * obj, void * cd) {
@@ -29,7 +31,7 @@ type PrimOp struct {
 	cprimop *C.PrimOp
 }
 
-type PrimOpFunc func(ctx *Context, state *State, args ...*Value) *Value
+type PrimOpFunc func(ctx *Context, state *State, args []*Value, ret *Value) error
 
 type primOpHandle struct {
 	numArgs int
@@ -49,13 +51,14 @@ func NewPrimOp(ctx *Context, name string, args []string, doc string, fun PrimOpF
 	}
 	argNames := (**C.char)(unsafe.Pointer(&argNamesPtrs[0]))
 
-	h := unsafe.Pointer(cgo.NewHandle(primOpHandle{len(args), fun}))
+	handle := cgo.NewHandle(primOpHandle{len(args), fun})
+	handlePtr := &handle
 
-	cprimop := C.nix_alloc_primop(ctx.ccontext, (*[0]byte)(C.nixPrimOp_cgo), C.int(len(args)), C.CString(name), argNames, C.CString(doc), h)
+	cprimop := C.nix_alloc_primop(ctx.ccontext, (*[0]byte)(C.nixPrimOp_cgo), C.int(len(args)), C.CString(name), argNames, C.CString(doc), unsafe.Pointer(handlePtr))
 	if cprimop == nil {
 		return nil, NewContext().lastError()
 	}
-	C.nix_gc_register_finalizer(unsafe.Pointer(cprimop), unsafe.Pointer(h), (*[0]byte)(C.finalizePrimOp_cgo))
+	C.nix_gc_register_finalizer(unsafe.Pointer(cprimop), unsafe.Pointer(handlePtr), (*[0]byte)(C.finalizePrimOp_cgo))
 
 	po := &PrimOp{cprimop}
 	runtime.SetFinalizer(po, func(v *PrimOp) {
